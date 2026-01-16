@@ -11,7 +11,7 @@
       background: #eaf6ff;
     }
     canvas {
-      background: #bfe9ff;
+      background: linear-gradient(#bfe9ff 60%, #7dd87d 60%);
       border-radius: 12px;
     }
     button {
@@ -23,83 +23,89 @@
 </head>
 <body>
 
-  <h2>🦦 カワウソ滑走ゲーム</h2>
+<h2>🦦 カワウソ滑走ゲーム</h2>
+<button id="startBtn">滑走スタート</button>
+<br>
+<small>画面タップでもスタートできます</small>
+<br><br>
 
-  <button id="startBtn">滑走スタート</button>
-  <br>
-  <small id="info">（あと10回プレイできます）</small>
+<canvas id="cv" width="1000" height="320"></canvas>
 
-  <br><br>
+<script>
+const cv = document.getElementById("cv");
+const ctx = cv.getContext("2d");
 
-  <canvas id="cv" width="1000" height="320"></canvas>
+const GROUND_Y = 240;
 
-  <script>
-    // ===== Canvas取得（← これが一番重要） =====
-    const cv = document.getElementById("cv");
-    const ctx = cv.getContext("2d");
+let state = "ready";
+let otter = { x: 150, y: 180, vx: 0 };
 
-    // ===== 定数 =====
-    const SEA_X = 660;
-    const GROUND_Y = 240;
-    const WATER_SURFACE = GROUND_Y + 15;
+function drawOtter(x, y) {
+  // 体
+  ctx.fillStyle = "#8b5a2b";
+  ctx.beginPath();
+  ctx.ellipse(x, y, 28, 18, 0, 0, Math.PI * 2);
+  ctx.fill();
 
-    // ===== 状態 =====
-    let slope = 0.4;
-    let otter = { x: 150, y: 100, vx: 0, swimSpeed: 0 };
-    let state = "ready";
+  // 顔
+  ctx.fillStyle = "#a97142";
+  ctx.beginPath();
+  ctx.arc(x + 22, y - 10, 14, 0, Math.PI * 2);
+  ctx.fill();
 
-    // ===== 描画 =====
-    function draw() {
-      ctx.clearRect(0, 0, cv.width, cv.height);
+  // 目
+  ctx.fillStyle = "#000";
+  ctx.beginPath();
+  ctx.arc(x + 26, y - 12, 2.5, 0, Math.PI * 2);
+  ctx.fill();
 
-      // 地面
-      ctx.fillStyle = "#7dd87d";
-      ctx.fillRect(0, GROUND_Y, cv.width, cv.height - GROUND_Y);
+  // しっぽ
+  ctx.strokeStyle = "#6b4226";
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.moveTo(x - 28, y);
+  ctx.lineTo(x - 48, y + 8);
+  ctx.stroke();
+}
 
-      // 水
-      ctx.fillStyle = "#5bc0eb";
-      ctx.fillRect(SEA_X, WATER_SURFACE, cv.width - SEA_X, cv.height);
+function draw() {
+  ctx.clearRect(0, 0, cv.width, cv.height);
 
-      // カワウソ
-      ctx.fillStyle = "#8b5a2b";
-      ctx.beginPath();
-      ctx.arc(otter.x, otter.y, 18, 0, Math.PI * 2);
-      ctx.fill();
+  // 地面
+  ctx.fillStyle = "#7dd87d";
+  ctx.fillRect(0, GROUND_Y, cv.width, cv.height - GROUND_Y);
+
+  drawOtter(otter.x, otter.y);
+}
+
+function update() {
+  if (state === "playing") {
+    otter.vx += 0.03;
+    otter.x += otter.vx;
+    if (otter.y < GROUND_Y - 18) {
+      otter.y += 0.6;
     }
+  }
+}
 
-    // ===== 更新 =====
-    function update() {
-      if (state === "playing") {
-        otter.vx += 0.02;
-        otter.x += otter.vx;
-        otter.y += slope;
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
 
-        if (otter.y > GROUND_Y - 18) {
-          otter.y = GROUND_Y - 18;
-        }
-      }
-    }
+function startGame() {
+  state = "playing";
+  otter.x = 150;
+  otter.y = 180;
+  otter.vx = 0;
+}
 
-    function loop() {
-      update();
-      draw();
-      requestAnimationFrame(loop);
-    }
+document.getElementById("startBtn").addEventListener("click", startGame);
+cv.addEventListener("touchstart", startGame);
 
-    // ===== スタートボタン =====
-    document.getElementById("startBtn").addEventListener("click", () => {
-      if (state === "ready") {
-        state = "playing";
-        otter.x = 150;
-        otter.y = 100;
-        otter.vx = 0;
-      }
-    });
-
-    // ===== 開始 =====
-    draw();
-    loop();
-  </script>
+loop();
+</script>
 
 </body>
 </html>
