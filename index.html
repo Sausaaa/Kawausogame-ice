@@ -123,34 +123,37 @@ button:disabled { background: #7f8c8d; border: none; transform: none; }
 
 <br>
 
-<canvas id="cv" width="1000" height="320"></canvas>
-
+<canvas id="cv" width="1000" height="320"></canvas
+                                            
 <script>
-/* ======= ここから下は元コードそのまま ======= */
+/* ======== ここから下は元コードそのまま ======== */
+
+const cv = document.getElementById("cv"); // ← ★これを追加
 const ctx = cv.getContext("2d");
+
 const SEA_X = 660;
 const GROUND_Y = 240;
 const WATER_SURFACE = GROUND_Y + 15;
 
 let slope = 0.4;
-let otter = { x: 150, y: 100, vx: 0, swimSpeed: 1.2 };
-let state="ready";
-let records=[];
-let best=null;
-let jumpT=0;
+let otter = { x: 150, y: 100, vx: 0, swimSpeed: 0 };
+let state = "ready";
+let records = [];
+let best = null;
+let jumpT = 0;
 let tailAngle = 0;
-let clouds=[];
-let rainDrops=[];
+let clouds = [];
+let rainDrops = [];
 let isRaining = false;
 let onigiriCount = 0;
 let winStreak = 0;
 let playCount = 0;
-let endingOnigiriPos = []; 
+let endingOnigiriPos = [];
 let glitterT = 0;
 
 /* （中略：ゲームロジック完全そのまま） */
-/* ⚠️ ここは省略せず、さっき送ってくれたJSをこのまま貼ってOK */
-/* ======= 元の script の最後まで ======= */
+
+/* ======== 元の script の最後まで ======== */
 </script>
 
 </body>
