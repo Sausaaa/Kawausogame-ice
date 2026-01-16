@@ -1,108 +1,138 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <title>カワウソ滑走ゲーム</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <style>
-    body {
-      text-align: center;
-      font-family: sans-serif;
-      background: #eaf6ff;
-    }
-    canvas {
-      background: linear-gradient(#bfe9ff 60%, #7dd87d 60%);
-      border-radius: 12px;
-    }
-    button {
-      font-size: 18px;
-      padding: 10px 20px;
-      margin: 10px;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>カワウソ滑走ゲームDX</title>
+<style>
+  body {
+    background:#cceeff;
+    font-family: sans-serif;
+    text-align:center;
+    margin:0;
+    padding:0;
+  }
+  canvas {
+    background:#88ccee;
+    max-width:100%;
+    touch-action: manipulation;
+  }
+  button {
+    font-size:16px;
+    padding:10px 20px;
+    margin:10px;
+  }
+</style>
 </head>
+
 <body>
 
-<h2>🦦 カワウソ滑走ゲーム</h2>
+<h2>🦦 カワウソ滑走ゲームDX</h2>
 <button id="startBtn">滑走スタート</button>
 <br>
-<small>画面タップでもスタートできます</small>
+<small>タップ or クリックでジャンプ</small>
 <br><br>
 
 <canvas id="cv" width="1000" height="320"></canvas>
 
 <script>
+/* ===== 初期設定 ===== */
 const cv = document.getElementById("cv");
 const ctx = cv.getContext("2d");
 
 const GROUND_Y = 240;
+const WATER_SURFACE = GROUND_Y + 15;
 
 let state = "ready";
-let otter = { x: 150, y: 180, vx: 0 };
+let playCount = 0;
 
+/* ===== カワウソ（見た目そのまま） ===== */
+let otter = {
+  x: 150,
+  y: 100,
+  vx: 0,
+  vy: 0,
+  swimSpeed: 6,
+  onGround: false
+};
+
+/* ===== 入力処理（スマホ対応） ===== */
+function jump() {
+  if (state !== "play") return;
+  if (otter.onGround) {
+    otter.vy = -10;
+    otter.onGround = false;
+  }
+}
+
+cv.addEventListener("pointerdown", jump);
+document.addEventListener("keydown", e => {
+  if (e.code === "Space") jump();
+});
+
+/* ===== スタート処理 ===== */
+document.getElementById("startBtn").onclick = () => {
+  state = "play";
+  playCount++;
+  otter.x = 150;
+  otter.y = 100;
+  otter.vx = otter.swimSpeed;
+  otter.vy = 0;
+};
+
+/* ===== カワウソ描画（ドット絵） ===== */
 function drawOtter(x, y) {
-  // 体
-  ctx.fillStyle = "#8b5a2b";
-  ctx.beginPath();
-  ctx.ellipse(x, y, 28, 18, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // 顔
-  ctx.fillStyle = "#a97142";
-  ctx.beginPath();
-  ctx.arc(x + 22, y - 10, 14, 0, Math.PI * 2);
-  ctx.fill();
-
-  // 目
+  ctx.fillStyle = "#5a3a22";
+  ctx.fillRect(x, y, 16, 12);
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(x + 4, y + 6, 6, 4);
   ctx.fillStyle = "#000";
-  ctx.beginPath();
-  ctx.arc(x + 26, y - 12, 2.5, 0, Math.PI * 2);
-  ctx.fill();
-
-  // しっぽ
-  ctx.strokeStyle = "#6b4226";
-  ctx.lineWidth = 6;
-  ctx.beginPath();
-  ctx.moveTo(x - 28, y);
-  ctx.lineTo(x - 48, y + 8);
-  ctx.stroke();
+  ctx.fillRect(x + 11, y + 3, 2, 2);
 }
 
-function draw() {
-  ctx.clearRect(0, 0, cv.width, cv.height);
-
-  // 地面
-  ctx.fillStyle = "#7dd87d";
-  ctx.fillRect(0, GROUND_Y, cv.width, cv.height - GROUND_Y);
-
-  drawOtter(otter.x, otter.y);
-}
-
+/* ===== 更新処理 ===== */
 function update() {
-  if (state === "playing") {
-    otter.vx += 0.03;
+  if (state === "play") {
     otter.x += otter.vx;
-    if (otter.y < GROUND_Y - 18) {
-      otter.y += 0.6;
+    otter.vy += 0.6;
+    otter.y += otter.vy;
+
+    if (otter.y >= GROUND_Y) {
+      otter.y = GROUND_Y;
+      otter.vy = 0;
+      otter.onGround = true;
+    }
+
+    if (otter.x > cv.width) {
+      state = "ready";
     }
   }
 }
 
+/* ===== 描画 ===== */
+function draw() {
+  ctx.clearRect(0, 0, cv.width, cv.height);
+
+  // 地面
+  ctx.fillStyle = "#44aa66";
+  ctx.fillRect(0, GROUND_Y + 12, cv.width, 100);
+
+  // 水面
+  ctx.strokeStyle = "#ffffff";
+  ctx.beginPath();
+  ctx.moveTo(0, WATER_SURFACE);
+  ctx.lineTo(cv.width, WATER_SURFACE);
+  ctx.stroke();
+
+  drawOtter(otter.x, otter.y);
+}
+
+/* ===== ループ ===== */
 function loop() {
   update();
   draw();
   requestAnimationFrame(loop);
 }
-
-function startGame() {
-  state = "playing";
-  otter.x = 150;
-  otter.y = 180;
-  otter.vx = 0;
-}
-
-document.getElementById("startBtn").addEventListener("click", startGame);
-cv.addEventListener("touchstart", startGame);
 
 loop();
 </script>
