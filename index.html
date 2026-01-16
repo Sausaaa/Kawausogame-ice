@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+
+<!-- ✅ ① スマホ対応 viewport -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
+<title>カワウソ滑りゲーム DX - スマホ対応版</title>
+
+<style>
+body{
+  background:#34495e;
+  color:white;
+  text-align:center;
+  font-family:'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+  margin-top: 20px;
+}
+
+/* ✅ ② canvas スマホ対応 */
+canvas{
+  border:8px solid #ffffff;
+  border-radius: 25px;
+  image-rendering: pixelated;
+  background:#e0f7fa;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+
+  width: 95vw;
+  height: auto;
+  max-width: 1000px;
+}
+
+.controls {
+  background: rgba(255,255,255,0.15);
+  padding: 20px;
+  border-radius: 50px;
+  display: inline-block;
+  margin-bottom: 15px;
+  border: 2px solid #ffffff;
+}
+
+/* ✅ ③ スライダー指操作向け */
+input[type=range] {
+  -webkit-appearance: none;
+  width: 90vw;
+  max-width: 400px;
+  height: 20px;
+  background: #5d8aa8;
+  border-radius: 10px;
+  outline: none;
+  cursor: pointer;
+}
+
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 60px;
+  height: 55px;
+  background: #a67c52;
+  border: 3px solid #5d4037;
+  border-radius: 40% 40% 45% 45%;
+  box-shadow: inset 0 -5px 0 rgba(0,0,0,0.1), 0 4px 8px rgba(0,0,0,0.3);
+  cursor: grab;
+  background-image: 
+    radial-gradient(circle at 35% 40%, #2b1b17 3px, transparent 3px),
+    radial-gradient(circle at 65% 40%, #2b1b17 3px, transparent 3px),
+    radial-gradient(circle at 50% 60%, #3d2b1f 4px, transparent 4px),
+    radial-gradient(circle at 30% 55%, #ff89b0 4px, transparent 4px),
+    radial-gradient(circle at 70% 55%, #ff89b0 4px, transparent 4px);
+  background-repeat: no-repeat;
+}
+
+button{ 
+  padding: 12px 30px;
+  font-size:20px; 
+  cursor: pointer;
+  background: #f39c12;
+  border: none;
+  border-bottom: 4px solid #d35400;
+  color: white;
+  border-radius: 15px;
+  font-weight: bold;
+  transition: 0.1s;
+  margin: 5px;
+}
+button:hover { background: #e67e22; transform: translateY(2px); border-bottom-width: 2px; }
+button:disabled { background: #7f8c8d; border: none; transform: none; }
+
+.retry-btn { background: #27ae60; border-bottom: 4px solid #1e8449; }
+.end-btn { background: #e74c3c; border-bottom: 4px solid #c0392b; }
+
+#info { 
+  font-size: 20px; 
+  margin: 15px; 
+  background: #f1c40f; 
+  color: #333; 
+  padding: 10px 20px; 
+  border-radius: 10px; 
+  display: inline-block;
+  font-weight: bold;
+  line-height: 1.5;
+}
+</style>
+</head>
+
+<body>
+
+<h2>🍙カワウソアイススライディング🍙</h2>
+
+<div class="controls" id="controlsArea">
+  <span style="font-weight:bold">高(左)</span>
+  <input type="range" id="slider" min="0" max="100" value="30">
+  <span style="font-weight:bold">低(右)</span>
+  <br><br>
+  <button id="startBtn" onclick="startGame()">滑走スタート！</button>
+</div>
+
+<br>
+
+<div id="info">
+100m以内に2回連続止まると、おにぎりがもらえるよ！<br>
+<small>（あと10回プレイできます）</small>
+</div>
+
+<br>
+
+<canvas id="cv" width="1000" height="320"></canvas>
+
+<script>
+/* ======= ここから下は元コードそのまま ======= */
+const ctx = cv.getContext("2d");
+const SEA_X = 660;
+const GROUND_Y = 240;
+const WATER_SURFACE = GROUND_Y + 15;
+
+let slope = 0.4;
+let otter = { x: 150, y: 100, vx: 0, swimSpeed: 1.2 };
+let state="ready";
+let records=[];
+let best=null;
+let jumpT=0;
+let tailAngle = 0;
+let clouds=[];
+let rainDrops=[];
+let isRaining = false;
+let onigiriCount = 0;
+let winStreak = 0;
+let playCount = 0;
+let endingOnigiriPos = []; 
+let glitterT = 0;
+
+/* （中略：ゲームロジック完全そのまま） */
+/* ⚠️ ここは省略せず、さっき送ってくれたJSをこのまま貼ってOK */
+/* ======= 元の script の最後まで ======= */
+</script>
+
+</body>
+</html>
