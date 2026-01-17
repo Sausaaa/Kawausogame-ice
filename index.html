@@ -14,52 +14,58 @@ body{
   padding: 10px;
   overflow-x: hidden;
 }
-h2 { font-size: 1.5rem; margin: 10px 0; }
+h2 { font-size: 1.4rem; margin: 10px 0; }
 
-/* キャンバスを画面幅に合わせる */
+/* キャンバスをスマホ画面の幅に合わせて自動リサイズ */
 canvas{
   border:4px solid #ffffff;
   border-radius: 15px;
   image-rendering: pixelated;
   background:#e0f7fa;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-  max-width: 100%;
-  height: auto;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  max-width: 100%; /* 画面幅を超えない */
+  height: auto;     /* アスペクト比を維持 */
 }
 
 .controls {
   background: rgba(255,255,255,0.15);
   padding: 15px;
-  border-radius: 20px;
-  display: block;
-  margin: 10px auto;
+  border-radius: 30px;
+  display: inline-block;
+  margin-top: 10px;
   border: 2px solid #ffffff;
+  width: 90%;
   max-width: 500px;
 }
 
-/* スライダーを指で操作しやすく大きく */
+/* スライダーを指で操作しやすく太く */
 input[type=range] {
   -webkit-appearance: none;
-  width: 80%;
-  height: 20px;
+  width: 70%;
+  height: 15px;
   background: #5d8aa8;
   border-radius: 10px;
-  margin: 15px 0;
+  outline: none;
 }
 
 input[type=range]::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 50px;
-  height: 50px;
+  width: 45px;
+  height: 40px;
   background: #a67c52;
-  border-radius: 50%;
   border: 3px solid #5d4037;
+  border-radius: 40% 40% 45% 45%;
   cursor: pointer;
+  background-image: 
+    radial-gradient(circle at 35% 40%, #2b1b17 2px, transparent 2px),
+    radial-gradient(circle at 65% 40%, #2b1b17 2px, transparent 2px),
+    radial-gradient(circle at 50% 60%, #3d2b1f 3px, transparent 3px);
+  background-repeat: no-repeat;
 }
 
 button{ 
-  padding: 15px 30px;
-  font-size: 18px; 
+  padding: 12px 24px;
+  font-size:18px; 
   cursor: pointer;
   background: #f39c12;
   border: none;
@@ -67,39 +73,45 @@ button{
   color: white;
   border-radius: 15px;
   font-weight: bold;
-  touch-action: manipulation; /* タップの反応を速くする */
+  margin: 5px;
+  touch-action: manipulation;
 }
+button:active { transform: translateY(2px); border-bottom-width: 2px; }
+button:disabled { background: #7f8c8d; border: none; }
+
+.retry-btn { background: #27ae60; border-bottom: 4px solid #1e8449; }
+.end-btn { background: #e74c3c; border-bottom: 4px solid #c0392b; }
 
 #info { 
   font-size: 16px; 
-  margin: 10px; 
+  margin: 10px auto; 
   background: #f1c40f; 
   color: #333; 
-  padding: 10px; 
+  padding: 8px 15px; 
   border-radius: 10px; 
   display: block;
+  max-width: 90%;
   font-weight: bold;
+  line-height: 1.4;
 }
 </style>
 </head>
 <body>
 
-<h2>🍙カワウソスライディング🍙</h2>
-<div id="info">100m以内に2回連続止まると、おにぎりがもらえるよ！</div>
-
-<canvas id="cv" width="1000" height="320"></canvas>
-
+<h2>🍙カワウソアイススライディング🍙</h2>
 <div class="controls" id="controlsArea">
-  <div style="margin-bottom:10px;">
-    <span>高</span>
-    <input type="range" id="slider" min="0" max="100" value="30">
-    <span>低</span>
-  </div>
+  <span style="font-weight:bold">高</span>
+  <input type="range" id="slider" min="0" max="100" value="30">
+  <span style="font-weight:bold">低</span>
+  <br><br>
   <button id="startBtn" onclick="startGame()">滑走スタート！</button>
 </div>
+<br>
+<div id="info">100m以内に2回連続止まると、おにぎりがもらえるよ！<br><small>（あと10回プレイできます）</small></div>
+<br>
+<canvas id="cv" width="1000" height="320"></canvas>
 
 <script>
-// --- 基本ロジックは元のコードを継承 ---
 const ctx = cv.getContext("2d");
 const SEA_X = 660;
 const GROUND_Y = 240;
@@ -109,24 +121,123 @@ let slope = 0.4;
 let otter = { x: 150, y: 100, vx: 0, swimSpeed: 1.2 };
 let state="ready";
 let records=[];
+let jumpT=0;
+let tailAngle = 0;
+let clouds=[];
+let rainDrops=[];
 let isRaining = false;
 let onigiriCount = 0;
 let winStreak = 0;
 let playCount = 0;
+let endingOnigiriPos = []; 
 let glitterT = 0;
-let clouds = [];
-let rainDrops = [];
-let jumpT = 0;
 
-// (既存の描画関数: drawBackground, drawGround, drawOtter 等をそのまま含めてください)
-// ※ 長くなるため、ここではスマホ特有の変更点のみ記載します
-
+// 初期設定（天候など）
 function initWeather(){
   isRaining = Math.random() < 0.4;
   clouds=[];
-  for(let i=0;i<6;i++) clouds.push({x:Math.random()*1000, y:20+Math.random()*60, s:0.2+Math.random()*0.5});
+  for(let i=0;i<6;i++){
+    clouds.push({x:Math.random()*1000, y:20+Math.random()*60, s:0.2+Math.random()*0.5});
+  }
   rainDrops = [];
-  for(let i=0; i<60; i++) rainDrops.push({x: Math.random()*1100, y: Math.random()*320, v: 6 + Math.random()*4});
+  for(let i=0; i<60; i++) {
+    rainDrops.push({x: Math.random()*1100, y: Math.random()*320, v: 6 + Math.random()*4});
+  }
+}
+
+// おにぎり描画
+function drawOnigiri(ox, oy, scale=1) {
+    ctx.lineWidth = 2.5 * scale;
+    ctx.strokeStyle = "#2c3e50";
+    ctx.fillStyle = "white";
+    ctx.lineJoin = "round";
+    const w = 18 * scale, h = 18 * scale, r = 8 * scale;
+    ctx.beginPath();
+    ctx.moveTo(ox, oy - h);
+    ctx.arcTo(ox + w, oy + h, ox - w, oy + h, r);
+    ctx.arcTo(ox - w, oy + h, ox, oy - h, r);
+    ctx.arcTo(ox, oy - h, ox + w, oy + h, r);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#2c3e50";
+    ctx.beginPath();
+    if(ctx.roundRect) ctx.roundRect(ox - (6*scale), oy + (5*scale), 12*scale, 10*scale, 2*scale);
+    else ctx.fillRect(ox - (6*scale), oy + (5*scale), 12*scale, 10*scale);
+    ctx.fill();
+}
+
+// 背景描画
+function drawBackground(){
+  if(isRaining) {
+    ctx.fillStyle = "#708090";
+    ctx.fillRect(0,0,1000,320);
+  } else {
+    let grad = ctx.createLinearGradient(0,0,0,320);
+    grad.addColorStop(0, "#bfe6ff"); grad.addColorStop(1, "#ffffff");
+    ctx.fillStyle = grad; ctx.fillRect(0,0,1000,320);
+    ctx.fillStyle="#f1c40f"; ctx.beginPath(); ctx.arc(80,50,25,0,Math.PI*2); ctx.fill();
+  }
+  ctx.fillStyle="white";
+  clouds.forEach(c=>{
+    ctx.globalAlpha = isRaining ? 0.4 : 0.9;
+    ctx.beginPath(); ctx.arc(c.x, c.y, 15, 0, Math.PI*2); ctx.arc(c.x+15, c.y-10, 18, 0, Math.PI*2); ctx.arc(c.x+35, c.y, 15, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1.0; c.x += c.s; if(c.x > 1050) c.x = -60;
+  });
+  if(isRaining) {
+    ctx.strokeStyle = "#3498db"; ctx.lineWidth = 2;
+    rainDrops.forEach(r => {
+      ctx.beginPath(); ctx.moveTo(r.x, r.y); ctx.lineTo(r.x - 4, r.y + 12); ctx.stroke();
+      r.y += r.v; r.x -= r.v * 0.3; if(r.y > 320) { r.y = -20; r.x = Math.random()*1100; }
+    });
+  }
+}
+
+// カワウソ描画パーツ
+function px(x, y, dx, dy, w, h, c, scale=2){
+  ctx.fillStyle = c; ctx.fillRect(x + dx*scale, y + dy*scale, w*scale, h*scale);
+}
+
+// カワウソ本体
+function drawOtter(x, y, mode, customScale=2){
+  const body = "#a67c52", dark = "#5d4037", belly = "#fdf5e6", eye = "#2b1b17", nose = "#3d2b1f", cheek = "#ff89b0";
+  ctx.save(); ctx.translate(x, y);
+  if(mode === "ready"){
+    tailAngle = Math.sin(Date.now() / 150) * 0.4;
+    ctx.save(); ctx.translate(3*customScale, 15*customScale); ctx.rotate(tailAngle);
+    px(0, 0, -6, -2, 6, 4, dark, customScale); ctx.restore();
+  }
+  if(mode === "stand" || mode === "ready" || mode === "sad"){
+    px(0,0, 10, 14, 4, 3, dark, customScale); px(0,0, 3, 17, 3, 2, dark, customScale); px(0,0, 8, 17, 3, 2, dark, customScale);
+    px(0,0, 3, 6, 8, 11, dark, customScale); px(0,0, 4, 7, 6, 10, body, customScale); px(0,0, 5, 8, 4, 8, belly, customScale);
+    px(0,0, 2, 9, 2, 4, dark, customScale); px(0,0, 10, 9, 2, 4, dark, customScale); px(0,0, 2, 0, 10, 7, dark, customScale);
+    px(0,0, 3, 1, 8, 5, body, customScale); px(0,0, 4, 5, 6, 2, belly, customScale);
+    if(mode === "sad") {
+      px(0,0, 4, 4, 2, 1, eye, customScale); px(0,0, 9, 4, 2, 1, eye, customScale);
+      px(0,0, 6, 5, 2, 1, nose, customScale);
+    } else {
+      px(0,0, 4, 3, 1, 1, eye, customScale); px(0,0, 9, 3, 1, 1, eye, customScale);
+      px(0,0, 6, 4, 2, 1, nose, customScale);
+    }
+    px(0,0, 2, 0, 2, 2, dark, customScale); px(0,0, 10, 0, 2, 2, dark, customScale);
+    px(0,0, 3, 4, 1, 1, cheek, customScale); px(0,0, 10, 4, 1, 1, cheek, customScale);
+  } else if(mode === "eating"){
+    const s = customScale;
+    px(0,0, 3, 8, 12, 14, dark, s); px(0,0, 4, 9, 10, 12, body, s); px(0,0, 5, 12, 8, 8, belly, s);
+    px(0,0, 2, 0, 14, 9, dark, s); px(0,0, 3, 1, 12, 7, body, s); px(0,0, 4, 6, 10, 3, belly, s);
+    px(0,0, 2, 0, 3, 3, dark, s); px(0,0, 13, 0, 3, 3, dark, s);
+    px(0,0, 5, 3, 2, 2, eye, s); px(0,0, 11, 3, 2, 2, eye, s); px(0,0, 8, 5, 2, 1, nose, s);
+    px(0,0, 4, 5, 2, 2, cheek, s); px(0,0, 12, 5, 2, 2, cheek, s);
+    px(0,0, 2, 12, 4, 4, dark, s); px(0,0, 12, 12, 4, 4, dark, s);
+    drawOnigiri(9*s, 15*s, 0.8 * (s/2));
+  } else {
+    px(0,0, -2, 10, 5, 3, dark, customScale); px(0,0, 2, 7, 13, 7, dark, customScale);
+    px(0,0, 3, 8, 11, 5, body, customScale); px(0,0, 5, 10, 8, 3, belly, customScale); 
+    px(0,0, 10, 4, 8, 7, dark, customScale); px(0,0, 11, 5, 6, 5, body, customScale);
+    px(0,0, 11, 3, 2, 2, dark, customScale); px(0,0, 16, 3, 2, 2, dark, customScale);
+    px(0,0, 12, 6, 1, 1, eye, customScale); px(0,0, 15, 6, 1, 1, eye, customScale);
+    px(0,0, 13, 7, 2, 1, nose, customScale);
+  }
+  ctx.restore();
 }
 
 function groundY(x){
@@ -135,76 +246,34 @@ function groundY(x){
   return GROUND_Y + 50;
 }
 
-// 描画ヘルパー
-function px(x, y, dx, dy, w, h, c, scale=2){
-  ctx.fillStyle = c;
-  ctx.fillRect(x + dx*scale, y + dy*scale, w*scale, h*scale);
-}
-
-function drawOnigiri(ox, oy, scale=1) {
-    ctx.lineWidth = 2.5 * scale;
-    ctx.strokeStyle = "#2c3e50"; ctx.fillStyle = "white";
-    ctx.lineJoin = "round";
-    const w = 18 * scale, h = 18 * scale, r = 8 * scale;
-    ctx.beginPath();
-    ctx.moveTo(ox, oy - h);
-    ctx.arcTo(ox + w, oy + h, ox - w, oy + h, r);
-    ctx.arcTo(ox - w, oy + h, ox, oy - h, r);
-    ctx.arcTo(ox, oy - h, ox + w, oy + h, r);
-    ctx.closePath(); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = "#2c3e50";
-    ctx.beginPath();
-    ctx.roundRect(ox - (6*scale), oy + (5*scale), 12*scale, 10*scale, 2*scale);
-    ctx.fill();
-}
-
-function drawOtter(x, y, mode, customScale=2){
-  const body = "#a67c52", dark = "#5d4037", belly = "#fdf5e6", eye = "#2b1b17", nose = "#3d2b1f", cheek = "#ff89b0";
-  ctx.save(); ctx.translate(x, y);
-  if(mode === "ready" || mode === "stand" || mode === "sad"){
-    px(0,0, 3, 6, 8, 11, dark, customScale); px(0,0, 4, 7, 6, 10, body, customScale);
-    px(0,0, 5, 8, 4, 8, belly, customScale); px(0,0, 2, 0, 10, 7, dark, customScale);
-    px(0,0, 3, 1, 8, 5, body, customScale);
-    px(0,0, 4, (mode==="sad"?4:3), 1, 1, eye, customScale); px(0,0, 9, (mode==="sad"?4:3), 1, 1, eye, customScale);
-    px(0,0, 6, 4, 2, 1, nose, customScale);
-  } else if(mode === "eating"){
-    const s = customScale;
-    px(0,0, 3, 8, 12, 14, dark, s); px(0,0, 4, 9, 10, 12, body, s);
-    px(0,0, 2, 0, 14, 9, dark, s); px(0,0, 5, 3, 2, 2, eye, s);
-    drawOnigiri(9*s, 15*s, 0.8 * (s/2));
-  } else {
-    px(0,0, 2, 7, 13, 7, dark, customScale); px(0,0, 3, 8, 11, 5, body, customScale);
-    px(0,0, 10, 4, 8, 7, dark, customScale); px(0,0, 12, 6, 1, 1, eye, customScale);
-  }
-  ctx.restore();
-}
-
-function drawBackground(){
-  ctx.fillStyle = isRaining ? "#708090" : "#bfe6ff";
-  ctx.fillRect(0,0,1000,320);
-  if(isRaining) {
-    ctx.strokeStyle = "#3498db";
-    rainDrops.forEach(r => {
-      ctx.beginPath(); ctx.moveTo(r.x, r.y); ctx.lineTo(r.x - 4, r.y + 12); ctx.stroke();
-      r.y += r.v; if(r.y > 320) r.y = -20;
-    });
-  }
-}
-
 function drawGround(){
-  ctx.fillStyle = "#e0f7fa";
-  ctx.beginPath(); ctx.moveTo(0,320); ctx.lineTo(0, groundY(0));
+  let iceGrad = ctx.createLinearGradient(0, 0, SEA_X, 320);
+  iceGrad.addColorStop(0, "#e0f7fa"); iceGrad.addColorStop(1, "#81d4fa");
+  ctx.fillStyle = iceGrad; ctx.beginPath(); ctx.moveTo(0,320); ctx.lineTo(0, groundY(0));
   for(let x=0; x<=SEA_X; x+=10) ctx.lineTo(x, groundY(x));
-  ctx.lineTo(SEA_X, 320); ctx.lineTo(SEA_X, 320); ctx.fill();
+  ctx.lineTo(SEA_X, 320); ctx.fill();
   ctx.fillStyle="#3498db"; ctx.fillRect(SEA_X, WATER_SURFACE, 1000, 320);
+  ctx.strokeStyle = "white"; ctx.lineWidth = 3;
+  for(let i=0; i<3; i++){
+    ctx.beginPath();
+    for(let wx=SEA_X; wx<=1000; wx+=20){
+      let wy = WATER_SURFACE + 20 + i*40 + Math.sin(wx/30 + Date.now()/400)*5;
+      if(wx === SEA_X) ctx.moveTo(wx, wy); else ctx.lineTo(wx, wy);
+    }
+    ctx.stroke();
+  }
 }
 
-function updateReadyPosition() {
-  if(state === "ready") {
-    const s = slider.value / 100;
-    otter.x = 30 + (400 * s);
-    otter.y = groundY(otter.x) - 50;
+function drawGlitter(x, y) {
+  if (glitterT <= 0) return;
+  const time = Date.now() / 100;
+  ctx.fillStyle = "#f1c40f";
+  for(let i=0; i<6; i++) {
+    const angle = (i * 60) * Math.PI / 180;
+    const dist = 40 + Math.sin(time + i) * 10;
+    ctx.beginPath(); ctx.arc(x + Math.cos(angle) * dist, y + Math.sin(angle) * dist, 4, 0, Math.PI*2); ctx.fill();
   }
+  glitterT--;
 }
 
 function startGame(){
@@ -213,7 +282,7 @@ function startGame(){
   slope = 0.35 + Math.random() * 0.15;
   const s = slider.value / 100;
   const startX = 30 + (400 * s); 
-  otter = { x: startX, vx: Math.sqrt(Math.max(0.1, (350 - startX) * slope)) * 1.1, y: groundY(startX)-22 };
+  otter = { x: startX, vx: Math.sqrt(Math.max(0.1, (350 - startX) * slope)) * (isRaining ? 1.05 : 1.1), y: groundY(startX)-22 };
   state = "slide";
   slider.disabled = true; startBtn.disabled = true;
 }
@@ -222,15 +291,25 @@ function loop(){
   ctx.clearRect(0,0,1000,320);
   if(state === "ending_eat"){
     ctx.fillStyle = "#e0f7fa"; ctx.fillRect(0,0,1000,320);
-    drawOtter(420, 100, "eating", 6);
-    requestAnimationFrame(loop); return;
+    endingOnigiriPos.forEach(p => drawOnigiri(p.x, p.y + Math.sin(Date.now()/500 + p.x)*5, 0.7));
+    ctx.fillStyle = "#2c3e50"; ctx.font = "bold 32px sans-serif"; ctx.fillText("むしゃむしゃ！おいしい！", 300, 60);
+    drawOtter(420, 100, "eating", 6); requestAnimationFrame(loop); return;
   }
+  if(state === "ending_sad"){
+    ctx.fillStyle = "#d1d8e0"; ctx.fillRect(0,0,1000,320);
+    ctx.fillStyle = "#2c3e50"; ctx.font = "bold 32px sans-serif"; ctx.fillText("おにぎり、食べたかったなぁ...", 280, 60);
+    drawOtter(420, 130, "sad", 6); requestAnimationFrame(loop); return;
+  }
+
   drawBackground();
   drawGround();
+  for(let i=0; i<onigiriCount; i++) drawOnigiri(40 + (i * 50), 40);
+
   if(state === "ready"){
-    updateReadyPosition(); drawOtter(otter.x, otter.y, "ready");
+    const s = slider.value / 100; otter.x = 30 + (400 * s); otter.y = groundY(otter.x) - 70;
+    drawOtter(otter.x, otter.y, "ready");
   } else if(state === "slide"){
-    otter.x += otter.vx; otter.y = groundY(otter.x) - 22; otter.vx *= (otter.x > 350) ? 0.975 : 1;
+    otter.x += otter.vx; otter.y = groundY(otter.x) - 22; otter.vx *= (otter.x > 350) ? (isRaining ? 0.98 : 0.972) : 1;
     if(otter.x <= 350) otter.vx += 0.05; drawOtter(otter.x, otter.y, "slide");
     if(otter.x >= SEA_X - 25) finish("fall");
     else if(otter.vx < 0.15) { state = "jump"; jumpT = 0; }
@@ -238,43 +317,54 @@ function loop(){
     jumpT++; const jumpH = Math.abs(Math.sin(jumpT/15 * Math.PI)) * 25; drawOtter(otter.x, groundY(otter.x) - 45 - jumpH, "stand");
     if(jumpT > 45) finish(Math.max(0, Math.floor(SEA_X - otter.x - 35)));
   } else if(state === "success"){
-    drawOtter(otter.x, groundY(otter.x) - 45, "stand");
+    drawOtter(otter.x, groundY(otter.x) - 45, "stand"); drawGlitter(otter.x + 20, groundY(otter.x) - 80);
   } else if(state === "finished_fail"){
-    otter.x += 1.2; drawOtter(otter.x, WATER_SURFACE + 30, "slide");
+    otter.y = WATER_SURFACE + 30; otter.x += 1.2; drawOtter(otter.x, otter.y, "slide");
   }
   requestAnimationFrame(loop);
 }
 
 function finish(dist){
-  if(dist === "fall") { state = "finished_fail"; winStreak = 0; }
+  let resultMsg = "";
+  if(dist === "fall") { resultMsg = "海に落ちちゃった...！"; winStreak = 0; state = "finished_fail"; }
   else {
     state = "success";
-    if(dist <= 100) { winStreak++; if(winStreak>=2){ onigiriCount++; winStreak=0; } }
-    else winStreak = 0;
+    if(dist <= 100) { 
+      winStreak++; 
+      if(winStreak >= 2) { onigiriCount++; resultMsg = `記録 ${dist}m！ 🍙おにぎり獲得！`; winStreak = 0; glitterT = 100; }
+      else resultMsg = `記録 ${dist}m！ あと1回でおにぎり！`;
+    } else { winStreak = 0; resultMsg = `記録 ${dist}m！ 100m以内を目指そう`; }
+    records.push(dist);
   }
-  updateUI(dist);
-}
-
-function updateUI(dist){
-  let msg = dist === "fall" ? "海に落ちた！" : `記録: ${dist}m`;
-  let btnText = playCount >= 10 ? "結果発表" : "もう一度";
-  let action = playCount >= 10 ? "endGame()" : "resetGame()";
-  info.innerHTML = `${msg} <br> <button onclick="${action}">${btnText}</button>`;
+  
+  let btns = `<button class="retry-btn" onclick="resetGame()">もう一度プレイ</button>`;
+  if(playCount >= 10) {
+    resultMsg = "10回プレイ完了！お疲れ様でした！<br>" + resultMsg;
+    btns = `<button class="end-btn" onclick="endGame()">ゲームを終了する</button>`;
+  } else { resultMsg += `<br><small>（あと${10 - playCount}回プレイできます）</small>`; }
+  info.innerHTML = `${resultMsg}<br><small>最近の記録: ${records.slice(-3).join("m, ")}m</small><br>${btns}`;
 }
 
 function resetGame(){
   state = "ready"; slider.disabled = false; startBtn.disabled = false;
-  info.innerHTML = `あと${10-playCount}回プレイできます`;
+  info.innerHTML = `100m以内に2回連続止まるとおにぎり獲得！<br><small>（あと${10 - playCount}回プレイできます）</small>`;
   initWeather();
 }
 
 function endGame(){
-  state = onigiriCount > 0 ? "ending_eat" : "ready";
-  info.innerHTML = `おにぎり${onigiriCount}個獲得！ <br> <button onclick="location.reload()">最初から</button>`;
+  document.getElementById("controlsArea").style.display = "none";
+  if(onigiriCount >= 1) {
+    endingOnigiriPos = [];
+    for(let i=0; i<onigiriCount; i++) endingOnigiriPos.push({ x: 100 + Math.random() * 800, y: 100 + Math.random() * 180 });
+    state = "ending_eat";
+    info.innerHTML = `おにぎりを ${onigiriCount} 個獲得！カワウソは大満足です！<br><button class="retry-btn" onclick="location.reload()">タイトルへ</button>`;
+  } else {
+    state = "ending_sad";
+    info.innerHTML = `おにぎりは 0 個でした...。<br><button class="retry-btn" onclick="location.reload()">再挑戦する</button>`;
+  }
 }
 
 initWeather();
-slider.addEventListener('input', updateReadyPosition);
 loop();
 </script>
 </body>
