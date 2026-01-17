@@ -2,140 +2,280 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>カワウソ滑走ゲームDX</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>カワウソ滑りゲーム DX - スマホ対応版</title>
 <style>
-  body {
-    background:#cceeff;
-    font-family: sans-serif;
-    text-align:center;
-    margin:0;
-    padding:0;
-  }
-  canvas {
-    background:#88ccee;
-    max-width:100%;
-    touch-action: manipulation;
-  }
-  button {
-    font-size:16px;
-    padding:10px 20px;
-    margin:10px;
-  }
+body{
+  background:#34495e;
+  color:white;
+  text-align:center;
+  font-family:'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+  margin: 0;
+  padding: 10px;
+  overflow-x: hidden;
+}
+h2 { font-size: 1.5rem; margin: 10px 0; }
+
+/* キャンバスを画面幅に合わせる */
+canvas{
+  border:4px solid #ffffff;
+  border-radius: 15px;
+  image-rendering: pixelated;
+  background:#e0f7fa;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+  max-width: 100%;
+  height: auto;
+}
+
+.controls {
+  background: rgba(255,255,255,0.15);
+  padding: 15px;
+  border-radius: 20px;
+  display: block;
+  margin: 10px auto;
+  border: 2px solid #ffffff;
+  max-width: 500px;
+}
+
+/* スライダーを指で操作しやすく大きく */
+input[type=range] {
+  -webkit-appearance: none;
+  width: 80%;
+  height: 20px;
+  background: #5d8aa8;
+  border-radius: 10px;
+  margin: 15px 0;
+}
+
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 50px;
+  height: 50px;
+  background: #a67c52;
+  border-radius: 50%;
+  border: 3px solid #5d4037;
+  cursor: pointer;
+}
+
+button{ 
+  padding: 15px 30px;
+  font-size: 18px; 
+  cursor: pointer;
+  background: #f39c12;
+  border: none;
+  border-bottom: 4px solid #d35400;
+  color: white;
+  border-radius: 15px;
+  font-weight: bold;
+  touch-action: manipulation; /* タップの反応を速くする */
+}
+
+#info { 
+  font-size: 16px; 
+  margin: 10px; 
+  background: #f1c40f; 
+  color: #333; 
+  padding: 10px; 
+  border-radius: 10px; 
+  display: block;
+  font-weight: bold;
+}
 </style>
 </head>
-
 <body>
 
-<h2>🦦 カワウソ滑走ゲームDX</h2>
-<button id="startBtn">滑走スタート</button>
-<br>
-<small>タップ or クリックでジャンプ</small>
-<br><br>
+<h2>🍙カワウソスライディング🍙</h2>
+<div id="info">100m以内に2回連続止まると、おにぎりがもらえるよ！</div>
 
 <canvas id="cv" width="1000" height="320"></canvas>
 
-<script>
-/* ===== 初期設定 ===== */
-const cv = document.getElementById("cv");
-const ctx = cv.getContext("2d");
+<div class="controls" id="controlsArea">
+  <div style="margin-bottom:10px;">
+    <span>高</span>
+    <input type="range" id="slider" min="0" max="100" value="30">
+    <span>低</span>
+  </div>
+  <button id="startBtn" onclick="startGame()">滑走スタート！</button>
+</div>
 
+<script>
+// --- 基本ロジックは元のコードを継承 ---
+const ctx = cv.getContext("2d");
+const SEA_X = 660;
 const GROUND_Y = 240;
 const WATER_SURFACE = GROUND_Y + 15;
 
-let state = "ready";
+let slope = 0.4;
+let otter = { x: 150, y: 100, vx: 0, swimSpeed: 1.2 };
+let state="ready";
+let records=[];
+let isRaining = false;
+let onigiriCount = 0;
+let winStreak = 0;
 let playCount = 0;
+let glitterT = 0;
+let clouds = [];
+let rainDrops = [];
+let jumpT = 0;
 
-/* ===== カワウソ（見た目そのまま） ===== */
-let otter = {
-  x: 150,
-  y: 100,
-  vx: 0,
-  vy: 0,
-  swimSpeed: 6,
-  onGround: false
-};
+// (既存の描画関数: drawBackground, drawGround, drawOtter 等をそのまま含めてください)
+// ※ 長くなるため、ここではスマホ特有の変更点のみ記載します
 
-/* ===== 入力処理（スマホ対応） ===== */
-function jump() {
-  if (state !== "play") return;
-  if (otter.onGround) {
-    otter.vy = -10;
-    otter.onGround = false;
+function initWeather(){
+  isRaining = Math.random() < 0.4;
+  clouds=[];
+  for(let i=0;i<6;i++) clouds.push({x:Math.random()*1000, y:20+Math.random()*60, s:0.2+Math.random()*0.5});
+  rainDrops = [];
+  for(let i=0; i<60; i++) rainDrops.push({x: Math.random()*1100, y: Math.random()*320, v: 6 + Math.random()*4});
+}
+
+function groundY(x){
+  if(x < 350) return GROUND_Y - (350 - x) * slope;
+  if(x < SEA_X) return GROUND_Y;
+  return GROUND_Y + 50;
+}
+
+// 描画ヘルパー
+function px(x, y, dx, dy, w, h, c, scale=2){
+  ctx.fillStyle = c;
+  ctx.fillRect(x + dx*scale, y + dy*scale, w*scale, h*scale);
+}
+
+function drawOnigiri(ox, oy, scale=1) {
+    ctx.lineWidth = 2.5 * scale;
+    ctx.strokeStyle = "#2c3e50"; ctx.fillStyle = "white";
+    ctx.lineJoin = "round";
+    const w = 18 * scale, h = 18 * scale, r = 8 * scale;
+    ctx.beginPath();
+    ctx.moveTo(ox, oy - h);
+    ctx.arcTo(ox + w, oy + h, ox - w, oy + h, r);
+    ctx.arcTo(ox - w, oy + h, ox, oy - h, r);
+    ctx.arcTo(ox, oy - h, ox + w, oy + h, r);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#2c3e50";
+    ctx.beginPath();
+    ctx.roundRect(ox - (6*scale), oy + (5*scale), 12*scale, 10*scale, 2*scale);
+    ctx.fill();
+}
+
+function drawOtter(x, y, mode, customScale=2){
+  const body = "#a67c52", dark = "#5d4037", belly = "#fdf5e6", eye = "#2b1b17", nose = "#3d2b1f", cheek = "#ff89b0";
+  ctx.save(); ctx.translate(x, y);
+  if(mode === "ready" || mode === "stand" || mode === "sad"){
+    px(0,0, 3, 6, 8, 11, dark, customScale); px(0,0, 4, 7, 6, 10, body, customScale);
+    px(0,0, 5, 8, 4, 8, belly, customScale); px(0,0, 2, 0, 10, 7, dark, customScale);
+    px(0,0, 3, 1, 8, 5, body, customScale);
+    px(0,0, 4, (mode==="sad"?4:3), 1, 1, eye, customScale); px(0,0, 9, (mode==="sad"?4:3), 1, 1, eye, customScale);
+    px(0,0, 6, 4, 2, 1, nose, customScale);
+  } else if(mode === "eating"){
+    const s = customScale;
+    px(0,0, 3, 8, 12, 14, dark, s); px(0,0, 4, 9, 10, 12, body, s);
+    px(0,0, 2, 0, 14, 9, dark, s); px(0,0, 5, 3, 2, 2, eye, s);
+    drawOnigiri(9*s, 15*s, 0.8 * (s/2));
+  } else {
+    px(0,0, 2, 7, 13, 7, dark, customScale); px(0,0, 3, 8, 11, 5, body, customScale);
+    px(0,0, 10, 4, 8, 7, dark, customScale); px(0,0, 12, 6, 1, 1, eye, customScale);
+  }
+  ctx.restore();
+}
+
+function drawBackground(){
+  ctx.fillStyle = isRaining ? "#708090" : "#bfe6ff";
+  ctx.fillRect(0,0,1000,320);
+  if(isRaining) {
+    ctx.strokeStyle = "#3498db";
+    rainDrops.forEach(r => {
+      ctx.beginPath(); ctx.moveTo(r.x, r.y); ctx.lineTo(r.x - 4, r.y + 12); ctx.stroke();
+      r.y += r.v; if(r.y > 320) r.y = -20;
+    });
   }
 }
 
-cv.addEventListener("pointerdown", jump);
-document.addEventListener("keydown", e => {
-  if (e.code === "Space") jump();
-});
+function drawGround(){
+  ctx.fillStyle = "#e0f7fa";
+  ctx.beginPath(); ctx.moveTo(0,320); ctx.lineTo(0, groundY(0));
+  for(let x=0; x<=SEA_X; x+=10) ctx.lineTo(x, groundY(x));
+  ctx.lineTo(SEA_X, 320); ctx.lineTo(SEA_X, 320); ctx.fill();
+  ctx.fillStyle="#3498db"; ctx.fillRect(SEA_X, WATER_SURFACE, 1000, 320);
+}
 
-/* ===== スタート処理 ===== */
-document.getElementById("startBtn").onclick = () => {
-  state = "play";
+function updateReadyPosition() {
+  if(state === "ready") {
+    const s = slider.value / 100;
+    otter.x = 30 + (400 * s);
+    otter.y = groundY(otter.x) - 50;
+  }
+}
+
+function startGame(){
+  if(state !== "ready") return;
   playCount++;
-  otter.x = 150;
-  otter.y = 100;
-  otter.vx = otter.swimSpeed;
-  otter.vy = 0;
-};
-
-/* ===== カワウソ描画（ドット絵） ===== */
-function drawOtter(x, y) {
-  ctx.fillStyle = "#5a3a22";
-  ctx.fillRect(x, y, 16, 12);
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(x + 4, y + 6, 6, 4);
-  ctx.fillStyle = "#000";
-  ctx.fillRect(x + 11, y + 3, 2, 2);
+  slope = 0.35 + Math.random() * 0.15;
+  const s = slider.value / 100;
+  const startX = 30 + (400 * s); 
+  otter = { x: startX, vx: Math.sqrt(Math.max(0.1, (350 - startX) * slope)) * 1.1, y: groundY(startX)-22 };
+  state = "slide";
+  slider.disabled = true; startBtn.disabled = true;
 }
 
-/* ===== 更新処理 ===== */
-function update() {
-  if (state === "play") {
-    otter.x += otter.vx;
-    otter.vy += 0.6;
-    otter.y += otter.vy;
-
-    if (otter.y >= GROUND_Y) {
-      otter.y = GROUND_Y;
-      otter.vy = 0;
-      otter.onGround = true;
-    }
-
-    if (otter.x > cv.width) {
-      state = "ready";
-    }
+function loop(){
+  ctx.clearRect(0,0,1000,320);
+  if(state === "ending_eat"){
+    ctx.fillStyle = "#e0f7fa"; ctx.fillRect(0,0,1000,320);
+    drawOtter(420, 100, "eating", 6);
+    requestAnimationFrame(loop); return;
   }
-}
-
-/* ===== 描画 ===== */
-function draw() {
-  ctx.clearRect(0, 0, cv.width, cv.height);
-
-  // 地面
-  ctx.fillStyle = "#44aa66";
-  ctx.fillRect(0, GROUND_Y + 12, cv.width, 100);
-
-  // 水面
-  ctx.strokeStyle = "#ffffff";
-  ctx.beginPath();
-  ctx.moveTo(0, WATER_SURFACE);
-  ctx.lineTo(cv.width, WATER_SURFACE);
-  ctx.stroke();
-
-  drawOtter(otter.x, otter.y);
-}
-
-/* ===== ループ ===== */
-function loop() {
-  update();
-  draw();
+  drawBackground();
+  drawGround();
+  if(state === "ready"){
+    updateReadyPosition(); drawOtter(otter.x, otter.y, "ready");
+  } else if(state === "slide"){
+    otter.x += otter.vx; otter.y = groundY(otter.x) - 22; otter.vx *= (otter.x > 350) ? 0.975 : 1;
+    if(otter.x <= 350) otter.vx += 0.05; drawOtter(otter.x, otter.y, "slide");
+    if(otter.x >= SEA_X - 25) finish("fall");
+    else if(otter.vx < 0.15) { state = "jump"; jumpT = 0; }
+  } else if(state === "jump"){
+    jumpT++; const jumpH = Math.abs(Math.sin(jumpT/15 * Math.PI)) * 25; drawOtter(otter.x, groundY(otter.x) - 45 - jumpH, "stand");
+    if(jumpT > 45) finish(Math.max(0, Math.floor(SEA_X - otter.x - 35)));
+  } else if(state === "success"){
+    drawOtter(otter.x, groundY(otter.x) - 45, "stand");
+  } else if(state === "finished_fail"){
+    otter.x += 1.2; drawOtter(otter.x, WATER_SURFACE + 30, "slide");
+  }
   requestAnimationFrame(loop);
 }
 
+function finish(dist){
+  if(dist === "fall") { state = "finished_fail"; winStreak = 0; }
+  else {
+    state = "success";
+    if(dist <= 100) { winStreak++; if(winStreak>=2){ onigiriCount++; winStreak=0; } }
+    else winStreak = 0;
+  }
+  updateUI(dist);
+}
+
+function updateUI(dist){
+  let msg = dist === "fall" ? "海に落ちた！" : `記録: ${dist}m`;
+  let btnText = playCount >= 10 ? "結果発表" : "もう一度";
+  let action = playCount >= 10 ? "endGame()" : "resetGame()";
+  info.innerHTML = `${msg} <br> <button onclick="${action}">${btnText}</button>`;
+}
+
+function resetGame(){
+  state = "ready"; slider.disabled = false; startBtn.disabled = false;
+  info.innerHTML = `あと${10-playCount}回プレイできます`;
+  initWeather();
+}
+
+function endGame(){
+  state = onigiriCount > 0 ? "ending_eat" : "ready";
+  info.innerHTML = `おにぎり${onigiriCount}個獲得！ <br> <button onclick="location.reload()">最初から</button>`;
+}
+
+initWeather();
+slider.addEventListener('input', updateReadyPosition);
 loop();
 </script>
-
 </body>
 </html>
